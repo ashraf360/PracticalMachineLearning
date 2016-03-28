@@ -1,0 +1,103 @@
+---
+title: "Weight Lifting Exercise Analysis - Practical Machine Learning"
+author: "Ashraf Youssef"
+date: "March 26, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+In this document we will perform an analysis of Weight Lifting Exercise data using the Random Forest machine learning technique to predict the outcome on a training set of 20 observations.  
+
+## Data Processing
+We utilize the data available in the following two links:
+  ### Training Data:
+ https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+ (https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
+  ### Testing Data:
+  https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+ (https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+
+## Exploratory Data Analysis
+
+First, the files are loaded.
+```{r}
+library(caret)
+library(randomForest)
+
+training<-read.csv('./pml-training.csv')
+testing<-read.csv('./pml-testing.csv')
+
+```
+The training data has 19622 observations of 160 variables, while the testing data has 20 observations of the same variables. Many of the variables are NA so we will remove those columns to simplify the analysis and make it more accurate. I utilize the nearZeroVar function which identifies the colums that have near zero variance.  They can be safely removed from dataset.
+## Create a Validation set
+In this section we create a validation set which is a subset of the testing set to test the quality of our model.
+
+```{r}
+nearzerovcol<-nearZeroVar(training)
+training<-training[,-nearzerovcol]
+```
+
+
+## Create a Validation set
+In this section we create a validation set which is a subset of the testing set to test the quality of our model.
+```{r}
+set.seed(1967)
+tset<-createDataPartition(training$classe, p=0.8, list=FALSE)
+training<-training[tset,]
+validation<-training[-tset,]
+```
+
+Also remove the columns that contain names or timestamps
+```{r}
+dim(training)
+colstoremove<-c("X","user_name","raw_timestamp_part_1","raw_timestamp_part_2","cvtd_timestamp","new_window","num_window")
+training<-training[,!names(training)%in% colstoremove]
+dim(training)
+
+countlength<-sapply(training, function(x) {
+  sum(!(is.na(x) | x == ""))
+
+})
+
+
+nullcol<-names(countlength[countlength< 0.8 * length(training$classe)])
+
+training1<-training[,!names(training)%in% nullcol]
+# training1<-training
+table(training1$classe)
+dim(training1)
+
+```
+
+
+## Constructing the Model and Validating
+We use the randomForest library to construct a random forest model.  Then we test the model accuracy on the validation set.  
+```{r}
+modA.rf<-randomForest(classe~., data=training1)
+
+pvalidation<-predict(modA.rf, validation)
+ptraining<-predict(modA.rf, training1)
+
+print(confusionMatrix(ptraining, training1$classe))
+print(confusionMatrix(pvalidation, validation$classe))
+```
+The accuracy shown with the training set is 100%, which is as expected.  The accuracy with the validation set is also 100%, which shows that our model is performing well.  
+
+## Predicting on the test set
+Now we take the test set and calculate and report our predictions.  
+
+````{r}
+ptesting<-predict(modA.rf, testing)
+ptesting
+```
+
+## Conclusion
+
+We utilized a random forest algorithm on a training set of data and validated on a validation subset of the training data.  The validation showed 100% accuracy.  We then predicted the results on the testing set and output the results.  
+
+
